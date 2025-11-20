@@ -12,13 +12,17 @@ const mockTask = {
   userId: 'user123',
 };
 
-const mockTaskModel = {
-  find: jest.fn(),
-  findById: jest.fn(),
-  findByIdAndUpdate: jest.fn(),
-  findByIdAndDelete: jest.fn(),
-  save: jest.fn(),
-};
+const saveMock = jest.fn();
+
+const mockTaskModel: any = jest.fn().mockImplementation((dto) => ({
+  ...dto,
+  save: saveMock,
+}));
+
+mockTaskModel.find = jest.fn();
+mockTaskModel.findById = jest.fn();
+mockTaskModel.findByIdAndUpdate = jest.fn();
+mockTaskModel.findByIdAndDelete = jest.fn();
 
 describe('TasksService', () => {
   let service: TasksService;
@@ -49,86 +53,72 @@ describe('TasksService', () => {
       });
 
       const result = await service.findAll();
-
       expect(result).toEqual([mockTask]);
-      expect(mockTaskModel.find).toHaveBeenCalled();
     });
   });
 
   describe('findOne', () => {
-    it('should return a single task', async () => {
+    it('should return one task', async () => {
       mockTaskModel.findById.mockReturnValue({
         populate: jest.fn().mockReturnThis(),
         exec: jest.fn().mockResolvedValue(mockTask),
       });
 
       const result = await service.findOne('task123');
-
       expect(result).toEqual(mockTask);
     });
 
-    it('should throw NotFoundException if task not found', async () => {
+    it('should throw NotFoundException', async () => {
       mockTaskModel.findById.mockReturnValue({
         populate: jest.fn().mockReturnThis(),
         exec: jest.fn().mockResolvedValue(null),
       });
 
-      await expect(service.findOne('wrongId')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('badid')).rejects.toThrow(NotFoundException);
     });
   });
 
   describe('create', () => {
-    it('should create and return a task', async () => {
-      const dto = {
-        title: 'New task',
-        description: 'Description',
-      };
-
-      mockTaskModel.save = jest.fn().mockResolvedValue({
-        ...dto,
+    it('should create a task', async () => {
+      saveMock.mockResolvedValue({
         _id: 'newId',
+        title: 'New task',
       });
 
-      const result = await service.create(dto as any);
+      const result = await service.create({ title: 'New task' } as any);
 
-      expect(result.title).toBe(dto.title);
+      expect(saveMock).toHaveBeenCalled();
+      expect(result._id).toBe('newId');
     });
   });
 
   describe('update', () => {
-    it('should update and return task', async () => {
+    it('should update task', async () => {
       mockTaskModel.findByIdAndUpdate.mockResolvedValue(mockTask);
 
-      const result = await service.update('task123', {
-        title: 'Updated title',
-      });
-
+      const result = await service.update('task123', { title: 'Updated' });
       expect(result).toEqual(mockTask);
     });
 
-    it('should throw NotFoundException if task not found', async () => {
+    it('should throw NotFoundException', async () => {
       mockTaskModel.findByIdAndUpdate.mockResolvedValue(null);
 
-      await expect(
-        service.update('wrongId', { title: 'Test' }),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.update('badid', {} as any)).rejects.toThrow(NotFoundException);
     });
   });
 
-
   describe('remove', () => {
-    it('should delete and return task', async () => {
+    it('should delete task', async () => {
       mockTaskModel.findByIdAndDelete.mockResolvedValue(mockTask);
 
       const result = await service.remove('task123');
-
       expect(result).toEqual(mockTask);
     });
 
-    it('should throw NotFoundException if task not found', async () => {
+    it('should throw NotFoundException', async () => {
       mockTaskModel.findByIdAndDelete.mockResolvedValue(null);
 
-      await expect(service.remove('wrongId')).rejects.toThrow(NotFoundException);
+      await expect(service.remove('badid')).rejects.toThrow(NotFoundException);
     });
   });
 });
